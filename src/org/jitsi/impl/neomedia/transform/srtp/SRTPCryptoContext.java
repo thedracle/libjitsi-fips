@@ -71,7 +71,7 @@ import org.jitsi.util.*;
  * @author Lyubomir Marinov
  */
 public class SRTPCryptoContext
-    extends OverrideBaseSRTPCryptoContext
+    extends BaseSRTPCryptoContext
 {
     /**
      * The name of the <tt>boolean</tt> <tt>ConfigurationService</tt> property

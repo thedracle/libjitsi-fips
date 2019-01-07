@@ -47,7 +47,7 @@ import org.jitsi.service.neomedia.*;
  * @author Lyubomir Marinov
  */
 public class SRTCPCryptoContext
-    extends OverrideBaseSRTPCryptoContext
+    extends BaseSRTPCryptoContext
 {
     /**
      * Index received so far

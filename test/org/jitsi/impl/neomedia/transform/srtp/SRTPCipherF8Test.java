@@ -5,7 +5,11 @@ import java.util.Arrays;
 import javax.xml.bind.DatatypeConverter;
 import org.bouncycastle.crypto.general.*;
 import org.junit.*;
-import org.bouncycastle.crypto.fips.WrapAESEngine;
+
+import org.bouncycastle.crypto.fips.FipsAES;
+import org.bouncycastle.crypto.general.FipsRegister;
+import org.bouncycastle.crypto.internal.BlockCipher;
+import org.jitsi.util.FipsRegisterWrapper;
 
 public class SRTPCipherF8Test
 {
@@ -36,7 +40,8 @@ public class SRTPCipherF8Test
     @Test
     public void testAES() throws Exception
     {
-        SRTPCipherF8 cipher = new SRTPCipherF8(new WrapAESEngine());
+
+        SRTPCipherF8 cipher = new SRTPCipherF8((BlockCipher)FipsRegisterWrapper.getProvider(FipsAES.ALGORITHM).createEngine());
         cipher.init(TV_Key, TV_Salt);
         byte[] data = Arrays.copyOf(TV_Plain, TV_Plain.length);
         byte[] iv = Arrays.copyOf(TV_IV, TV_IV.length);

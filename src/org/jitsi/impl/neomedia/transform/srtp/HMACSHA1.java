@@ -18,7 +18,9 @@ package org.jitsi.impl.neomedia.transform.srtp;
 import org.bouncycastle.crypto.internal.*;
 import org.bouncycastle.crypto.internal.digests.*;
 import org.bouncycastle.crypto.internal.macs.*;
-import org.bouncycastle.crypto.fips.WrapSHA1Digest;
+import org.bouncycastle.crypto.fips.FipsSHS;
+import org.jitsi.util.FipsRegisterWrapper;
+
 
 /**
  * Implements a factory for an HMAC-SHA1 <tt>org.bouncycastle.crypto.internal.Mac</tt>.
@@ -43,7 +45,7 @@ public class HMACSHA1
         else
         {
             // Fallback to BouncyCastle.
-            return new HMac(new WrapSHA1Digest());
+            return new HMac((Digest)FipsRegisterWrapper.getProvider(FipsSHS.Algorithm.SHA1).createEngine());
         }
     }
 }

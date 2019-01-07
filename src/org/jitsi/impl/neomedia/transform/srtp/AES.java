@@ -22,7 +22,9 @@ import java.util.*;
 import org.bouncycastle.crypto.internal.*;
 import org.bouncycastle.crypto.general.*;
 import org.bouncycastle.crypto.internal.params.*;
-import org.bouncycastle.crypto.fips.WrapAESEngine;
+
+import org.bouncycastle.crypto.fips.FipsAES;
+import org.bouncycastle.crypto.general.FipsRegister;
 import org.jitsi.service.configuration.*;
 import org.jitsi.service.libjitsi.*;
 import org.jitsi.util.*;
@@ -616,11 +618,11 @@ public class AES
         public BlockCipher createBlockCipher(int keySize)
             throws Exception
         {
+
             // The value of keySize can be ignored for BouncyCastle, it
             // determines the AES algorithm to be used with the KeyParameter.
-            //
             // JRT: Wrap and returns a FIPS compliant AES Engine.
-            return new WrapAESEngine();
+            return (BlockCipher)FipsRegisterWrapper.getProvider(FipsAES.ALGORITHM).createEngine();
         }
     }
 

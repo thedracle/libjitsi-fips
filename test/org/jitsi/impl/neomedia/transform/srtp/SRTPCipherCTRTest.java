@@ -3,9 +3,14 @@ package org.jitsi.impl.neomedia.transform.srtp;
 import static org.junit.Assert.*;
 import java.util.Arrays;
 import javax.xml.bind.DatatypeConverter;
-import org.bouncycastle.crypto.fips.WrapAESEngine;
 import org.jitsi.util.OSUtils;
 import org.junit.Test;
+
+import org.bouncycastle.crypto.internal.BlockCipher;
+import org.bouncycastle.crypto.fips.FipsAES;
+import org.bouncycastle.crypto.general.FipsRegister;
+import org.jitsi.util.FipsRegisterWrapper;
+
 
 public class SRTPCipherCTRTest
 {
@@ -32,7 +37,8 @@ public class SRTPCipherCTRTest
     @Test
     public void testJavaCTRAES()
     {
-        SRTPCipherCTR cipher = new SRTPCipherCTRJava(new WrapAESEngine());
+
+        SRTPCipherCTR cipher = new SRTPCipherCTRJava((BlockCipher)FipsRegisterWrapper.getProvider(FipsAES.ALGORITHM).createEngine());
         cipher.init(TV_Key);
         byte[] data = new byte[TV_Cipher_AES_1.length];
 

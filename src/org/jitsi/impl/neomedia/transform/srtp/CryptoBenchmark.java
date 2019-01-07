@@ -27,10 +27,9 @@ import org.bouncycastle.crypto.internal.digests.*;
 import org.bouncycastle.crypto.general.*;
 import org.bouncycastle.crypto.internal.macs.*;
 import org.bouncycastle.crypto.internal.params.*;
-import org.bouncycastle.crypto.fips.WrapSHA1Digest;
-import org.bouncycastle.crypto.fips.WrapAESEngine;
-
-
+import org.jitsi.util.FipsRegisterWrapper;
+import org.bouncycastle.crypto.fips.FipsSHS;
+import org.bouncycastle.crypto.fips.FipsAES;
 
 /**
  *
@@ -64,7 +63,7 @@ public class CryptoBenchmark
         // org.bouncycastle.crypto.Digest & java.security.MessageDigest
         Digest[] digests
             = {
-                new WrapSHA1Digest(),
+                (Digest)FipsRegisterWrapper.getProvider(FipsSHS.Algorithm.SHA1).createEngine(),
             };
         MessageDigest[] messageDigests
             = {
@@ -108,7 +107,7 @@ public class CryptoBenchmark
         // org.bouncycastle.crypto.BlockCipher
         BlockCipher[] ciphers
             = {
-                new WrapAESEngine(),
+                (BlockCipher)FipsRegisterWrapper.getProvider(FipsAES.ALGORITHM).createEngine(),
                 new BlockCipherAdapter(
                         Cipher.getInstance("AES_128/ECB/NoPadding", sunPKCS11)),
                 new BlockCipherAdapter(
@@ -136,7 +135,7 @@ public class CryptoBenchmark
         // org.bouncycastle.crypto.internal.Mac
         Mac[] macs
             = {
-                new HMac(new WrapSHA1Digest()),
+                new HMac((Digest)FipsRegisterWrapper.getProvider(FipsSHS.Algorithm.SHA1).createEngine()),
                 new OpenSSLHMAC(OpenSSLHMAC.SHA1)
             };
 

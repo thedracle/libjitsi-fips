@@ -32,8 +32,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 */
-//package org.jitsi.impl.neomedia.transform.srtp;
-package org.bouncycastle.crypto.internal;
+package org.jitsi.impl.neomedia.transform.srtp;
 import java.util.*;
 import org.jitsi.impl.neomedia.transform.srtp.*;
 import org.bouncycastle.crypto.internal.*;
@@ -66,7 +65,7 @@ import org.jitsi.service.neomedia.*;
  * @author Bing SU (nova.su@gmail.com)
  * @author Lyubomir Marinov
  */
-public class OverrideBaseSRTPCryptoContext
+public class BaseSRTPCryptoContext
 {
     /**
      * The replay check windows size.
@@ -154,7 +153,7 @@ public class OverrideBaseSRTPCryptoContext
      */
     protected final byte[] tempStore = new byte[100];
 
-    protected OverrideBaseSRTPCryptoContext(int ssrc)
+    protected BaseSRTPCryptoContext(int ssrc)
     {
         this.ssrc = ssrc;
 
@@ -171,7 +170,7 @@ public class OverrideBaseSRTPCryptoContext
     }
 
     @SuppressWarnings("fallthrough")
-    protected OverrideBaseSRTPCryptoContext(
+    protected BaseSRTPCryptoContext(
             int ssrc,
             byte[] masterK,
             byte[] masterS,
