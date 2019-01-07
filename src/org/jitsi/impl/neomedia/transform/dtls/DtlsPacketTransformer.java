@@ -20,7 +20,7 @@ import java.io.*;
 import java.security.*;
 import java.util.*;
 
-import org.bouncycastle.crypto.tls.*;
+import org.bouncycastle.tls.*;
 import org.ice4j.ice.*;
 import org.jitsi.impl.neomedia.*;
 import org.jitsi.impl.neomedia.transform.*;
@@ -1230,12 +1230,12 @@ public class DtlsPacketTransformer
 
         if (DtlsControl.Setup.ACTIVE.equals(setup))
         {
-            dtlsProtocolObj = new DTLSClientProtocol(new SecureRandom());
+            dtlsProtocolObj = new DTLSClientProtocol();
             tlsPeer = new TlsClientImpl(this);
         }
         else
         {
-            dtlsProtocolObj = new DTLSServerProtocol(new SecureRandom());
+            dtlsProtocolObj = new DTLSServerProtocol();
             tlsPeer = new TlsServerImpl(this);
         }
         tlsPeerHasRaisedCloseNotifyWarning = false;

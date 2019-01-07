@@ -15,22 +15,23 @@
  */
 package org.jitsi.impl.neomedia.transform.srtp;
 
-import org.bouncycastle.crypto.*;
-import org.bouncycastle.crypto.digests.*;
-import org.bouncycastle.crypto.macs.*;
+import org.bouncycastle.crypto.internal.*;
+import org.bouncycastle.crypto.internal.digests.*;
+import org.bouncycastle.crypto.internal.macs.*;
+import org.bouncycastle.crypto.fips.WrapSHA1Digest;
 
 /**
- * Implements a factory for an HMAC-SHA1 <tt>org.bouncycastle.crypto.Mac</tt>.
+ * Implements a factory for an HMAC-SHA1 <tt>org.bouncycastle.crypto.internal.Mac</tt>.
  *
  * @author Lyubomir Marinov
  */
 public class HMACSHA1
 {
     /**
-     * Initializes a new <tt>org.bouncycastle.crypto.Mac</tt> instance which
+     * Initializes a new <tt>org.bouncycastle.crypto.internal.Mac</tt> instance which
      * implements a keyed-hash message authentication code (HMAC) with SHA-1.
      *
-     * @return a new <tt>org.bouncycastle.crypto.Mac</tt> instance which
+     * @return a new <tt>org.bouncycastle.crypto.internal.Mac</tt> instance which
      * implements a keyed-hash message authentication code (HMAC) with SHA-1
      */
     public static Mac createMac()
@@ -42,7 +43,7 @@ public class HMACSHA1
         else
         {
             // Fallback to BouncyCastle.
-            return new HMac(new SHA1Digest());
+            return new HMac(new WrapSHA1Digest());
         }
     }
 }

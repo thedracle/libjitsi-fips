@@ -15,8 +15,8 @@
  */
 package org.jitsi.impl.neomedia.transform.srtp;
 
-import org.bouncycastle.crypto.*;
-import org.bouncycastle.crypto.params.*;
+import org.bouncycastle.crypto.internal.*;
+import org.bouncycastle.crypto.internal.params.*;
 
 /**
  * @see SRTPCipherCTR
@@ -43,7 +43,7 @@ public class SRTPCipherCTRJava extends SRTPCipherCTR
         if (key.length != 16 && key.length != 24 && key.length != 32)
             throw new IllegalArgumentException("Not an AES key length");
 
-        cipher.init(true, new KeyParameter(key));
+        cipher.init(true, new KeyParameterImpl(key));
     }
 
     /**

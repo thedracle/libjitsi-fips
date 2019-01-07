@@ -32,12 +32,13 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 */
-package org.jitsi.impl.neomedia.transform.srtp;
-
+//package org.jitsi.impl.neomedia.transform.srtp;
+package org.bouncycastle.crypto.internal;
 import java.util.*;
-
-import org.bouncycastle.crypto.*;
-import org.bouncycastle.crypto.engines.*;
+import org.jitsi.impl.neomedia.transform.srtp.*;
+import org.bouncycastle.crypto.internal.*;
+import org.bouncycastle.crypto.general.*;
+import org.bouncycastle.crypto.internal.Mac;
 import org.jitsi.bccontrib.macs.*;
 import org.jitsi.service.neomedia.*;
 
@@ -65,7 +66,7 @@ import org.jitsi.service.neomedia.*;
  * @author Bing SU (nova.su@gmail.com)
  * @author Lyubomir Marinov
  */
-class BaseSRTPCryptoContext
+public class OverrideBaseSRTPCryptoContext
 {
     /**
      * The replay check windows size.
@@ -100,7 +101,7 @@ class BaseSRTPCryptoContext
     /**
      * The HMAC object we used to do packet authentication
      */
-    protected final Mac mac; // used for various HMAC computations
+    protected final org.bouncycastle.crypto.internal.Mac mac; // used for various HMAC computations
 
     /**
      * Master encryption key
@@ -153,7 +154,7 @@ class BaseSRTPCryptoContext
      */
     protected final byte[] tempStore = new byte[100];
 
-    protected BaseSRTPCryptoContext(int ssrc)
+    protected OverrideBaseSRTPCryptoContext(int ssrc)
     {
         this.ssrc = ssrc;
 
@@ -170,7 +171,7 @@ class BaseSRTPCryptoContext
     }
 
     @SuppressWarnings("fallthrough")
-    protected BaseSRTPCryptoContext(
+    protected OverrideBaseSRTPCryptoContext(
             int ssrc,
             byte[] masterK,
             byte[] masterS,
@@ -200,7 +201,7 @@ class BaseSRTPCryptoContext
             break;
 
         case SRTPPolicy.AESF8_ENCRYPTION:
-            cipherF8 = new SRTPCipherF8(AES.createBlockCipher(encKeyLength));
+            cipherF8 = new SRTPCipherF8(org.jitsi.impl.neomedia.transform.srtp.AES.createBlockCipher(encKeyLength));
             //$FALL-THROUGH$
 
         case SRTPPolicy.AESCM_ENCRYPTION:
@@ -213,18 +214,8 @@ class BaseSRTPCryptoContext
             {
                 cipherCtr
                     = new SRTPCipherCTRJava(
-                            AES.createBlockCipher(encKeyLength));
+                            org.jitsi.impl.neomedia.transform.srtp.AES.createBlockCipher(encKeyLength));
             }
-            encKey = new byte[encKeyLength];
-            saltKey = new byte[saltKeyLength];
-            break;
-
-        case SRTPPolicy.TWOFISHF8_ENCRYPTION:
-            cipherF8 = new SRTPCipherF8(new TwofishEngine());
-            //$FALL-THROUGH$
-
-        case SRTPPolicy.TWOFISH_ENCRYPTION:
-            cipherCtr = new SRTPCipherCTRJava(new TwofishEngine());
             encKey = new byte[encKeyLength];
             saltKey = new byte[saltKeyLength];
             break;
@@ -235,7 +226,7 @@ class BaseSRTPCryptoContext
         this.saltKey = saltKey;
 
         byte[] authKey;
-        Mac mac;
+        org.bouncycastle.crypto.internal.Mac mac;
         byte[] tagStore;
 
         switch (policy.getAuthType())
@@ -244,12 +235,6 @@ class BaseSRTPCryptoContext
             authKey = new byte[policy.getAuthKeyLength()];
             mac = HMACSHA1.createMac();
             tagStore = new byte[mac.getMacSize()];
-            break;
-
-        case SRTPPolicy.SKEIN_AUTHENTICATION:
-            authKey = new byte[policy.getAuthKeyLength()];
-            mac = new SkeinMac();
-            tagStore = new byte[policy.getAuthTagLength()];
             break;
 
         case SRTPPolicy.NULL_AUTHENTICATION:

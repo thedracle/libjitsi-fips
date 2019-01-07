@@ -20,8 +20,8 @@ import java.security.*;
 import javax.crypto.*;
 import javax.crypto.spec.*;
 
-import org.bouncycastle.crypto.*;
-import org.bouncycastle.crypto.params.*;
+import org.bouncycastle.crypto.internal.*;
+import org.bouncycastle.crypto.internal.params.*;
 import org.jitsi.util.*;
 
 /**

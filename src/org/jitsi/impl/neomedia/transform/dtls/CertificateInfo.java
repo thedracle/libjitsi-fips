@@ -15,8 +15,13 @@
  */
 package org.jitsi.impl.neomedia.transform.dtls;
 
-import org.bouncycastle.crypto.*;
-import org.bouncycastle.crypto.tls.*;
+import org.bouncycastle.crypto.internal.*;
+import org.bouncycastle.tls.*;
+
+import org.bouncycastle.crypto.asymmetric.AsymmetricKeyPair;
+import org.bouncycastle.crypto.asymmetric.AsymmetricRSAPrivateKey;
+import org.bouncycastle.crypto.asymmetric.AsymmetricRSAPublicKey;
+
 
 /**
  * Bundles information such as key pair, hash function, fingerprint, etc. about
@@ -36,7 +41,7 @@ class CertificateInfo
     /**
      * The private and public keys of {@link #certificate}.
      */
-    private final AsymmetricCipherKeyPair keyPair;
+    private final AsymmetricKeyPair<AsymmetricRSAPublicKey, AsymmetricRSAPrivateKey> keyPair;
 
     /**
      * The fingerprint of {@link #certificate}.
@@ -68,7 +73,7 @@ class CertificateInfo
      * @param timestamp
      */
     public CertificateInfo(
-            AsymmetricCipherKeyPair keyPair,
+            AsymmetricKeyPair<AsymmetricRSAPublicKey, AsymmetricRSAPrivateKey> keyPair,
             Certificate certificate,
             String localFingerprintHashFunction,
             String localFingerprint,
@@ -98,7 +103,7 @@ class CertificateInfo
      *
      * @return the private and public keys of {@link #certificate}.
      */
-    public AsymmetricCipherKeyPair getKeyPair()
+    public AsymmetricKeyPair<AsymmetricRSAPublicKey, AsymmetricRSAPrivateKey> getKeyPair()
     {
         return keyPair;
     }

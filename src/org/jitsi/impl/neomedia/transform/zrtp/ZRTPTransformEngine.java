@@ -865,21 +865,10 @@ public class ZRTPTransformEngine
             authn = SRTPPolicy.HMACSHA1_AUTHENTICATION;
             authKeyLen = 20;
         }
-        else if (secrets.getAuthAlgorithm()
-                == ZrtpConstants.SupportedAuthAlgos.SK)
-        {
-            authn = SRTPPolicy.SKEIN_AUTHENTICATION;
-            authKeyLen = 32;
-        }
 
         if (secrets.getSymEncAlgorithm() == ZrtpConstants.SupportedSymAlgos.AES)
         {
             cipher = SRTPPolicy.AESCM_ENCRYPTION;
-        }
-        else if (secrets.getSymEncAlgorithm()
-                == ZrtpConstants.SupportedSymAlgos.TwoFish)
-        {
-            cipher = SRTPPolicy.TWOFISH_ENCRYPTION;
         }
 
         if (part == EnableSecurity.ForSender)

@@ -19,9 +19,10 @@ import java.lang.reflect.*;
 import java.security.*;
 import java.util.*;
 
-import org.bouncycastle.crypto.*;
-import org.bouncycastle.crypto.engines.*;
-import org.bouncycastle.crypto.params.*;
+import org.bouncycastle.crypto.internal.*;
+import org.bouncycastle.crypto.general.*;
+import org.bouncycastle.crypto.internal.params.*;
+import org.bouncycastle.crypto.fips.WrapAESEngine;
 import org.jitsi.service.configuration.*;
 import org.jitsi.service.libjitsi.*;
 import org.jitsi.util.*;
@@ -165,7 +166,7 @@ public class AES
         random.nextBytes(key);
         random.nextBytes(in);
 
-        CipherParameters params = new KeyParameter(key);
+        CipherParameters params = new KeyParameterImpl(key);
         int blockSize = BLOCK_SIZE;
         int inEnd = in.length - blockSize + 1;
         byte[] out = AES.out;
@@ -617,7 +618,9 @@ public class AES
         {
             // The value of keySize can be ignored for BouncyCastle, it
             // determines the AES algorithm to be used with the KeyParameter.
-            return new AESFastEngine();
+            //
+            // JRT: Wrap and returns a FIPS compliant AES Engine.
+            return new WrapAESEngine();
         }
     }
 

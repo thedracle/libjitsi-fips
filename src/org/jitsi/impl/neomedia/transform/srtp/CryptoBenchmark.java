@@ -21,12 +21,16 @@ import java.util.*;
 
 import javax.crypto.*;
 
-import org.bouncycastle.crypto.*;
-import org.bouncycastle.crypto.Mac;
-import org.bouncycastle.crypto.digests.*;
-import org.bouncycastle.crypto.engines.*;
-import org.bouncycastle.crypto.macs.*;
-import org.bouncycastle.crypto.params.*;
+import org.bouncycastle.crypto.internal.*;
+import org.bouncycastle.crypto.internal.Mac;
+import org.bouncycastle.crypto.internal.digests.*;
+import org.bouncycastle.crypto.general.*;
+import org.bouncycastle.crypto.internal.macs.*;
+import org.bouncycastle.crypto.internal.params.*;
+import org.bouncycastle.crypto.fips.WrapSHA1Digest;
+import org.bouncycastle.crypto.fips.WrapAESEngine;
+
+
 
 /**
  *
@@ -60,7 +64,7 @@ public class CryptoBenchmark
         // org.bouncycastle.crypto.Digest & java.security.MessageDigest
         Digest[] digests
             = {
-                new SHA1Digest(),
+                new WrapSHA1Digest(),
             };
         MessageDigest[] messageDigests
             = {
@@ -104,7 +108,7 @@ public class CryptoBenchmark
         // org.bouncycastle.crypto.BlockCipher
         BlockCipher[] ciphers
             = {
-                new AESFastEngine(),
+                new WrapAESEngine(),
                 new BlockCipherAdapter(
                         Cipher.getInstance("AES_128/ECB/NoPadding", sunPKCS11)),
                 new BlockCipherAdapter(
@@ -129,10 +133,10 @@ public class CryptoBenchmark
                     clazz.getName() + ": blockSize " + cipher.getBlockSize());
         }
 
-        // org.bouncycastle.crypto.Mac
+        // org.bouncycastle.crypto.internal.Mac
         Mac[] macs
             = {
-                new HMac(new SHA1Digest()),
+                new HMac(new WrapSHA1Digest()),
                 new OpenSSLHMAC(OpenSSLHMAC.SHA1)
             };
 
@@ -177,7 +181,7 @@ public class CryptoBenchmark
 
                 int blockSize = blockCipher.getBlockSize();
 
-                blockCipher.init(true, new KeyParameter(in, 0, blockSize));
+                blockCipher.init(true, new KeyParameterImpl(in, 0, blockSize));
 
                 long startTime, endTime;
                 int offEnd = in.length - blockSize;
@@ -305,13 +309,13 @@ public class CryptoBenchmark
                 }
             }
 
-            // org.bouncycastle.crypto.Mac
+            // org.bouncycastle.crypto.internal.Mac
             System.err.println("----------------------------------------");
 
             time0 = 0;
             for (Mac mac : macs)
             {
-                mac.init(new KeyParameter(in, 0, maxByteLength));
+                mac.init(new KeyParameterImpl(in, 0, maxByteLength));
 
                 long startTime, endTime;
                 int offEnd = in.length - maxByteLength;

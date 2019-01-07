@@ -17,8 +17,8 @@ package org.jitsi.impl.neomedia.transform.srtp;
 
 import java.util.*;
 
-import org.bouncycastle.crypto.*;
-import org.bouncycastle.crypto.params.*;
+import org.bouncycastle.crypto.internal.*;
+import org.bouncycastle.crypto.internal.params.*;
 
 /**
  * SRTPCipherF8 implements SRTP F8 Mode Encryption for 128 bits block cipher.
@@ -77,7 +77,7 @@ public class SRTPCipherF8
     private byte[] maskedKey;
 
     /**
-     * A 128 bits block cipher (AES or TwoFish)
+     * A 128 bits block cipher (AES)
      */
     private BlockCipher cipher;
 
@@ -136,13 +136,13 @@ public class SRTPCipherF8
         /*
          * Encrypt the original IV to produce IV'.
          */
-        cipher.init(true, new KeyParameter(maskedKey));
+        cipher.init(true, new KeyParameterImpl(maskedKey));
         cipher.processBlock(iv, 0, f8ctx.ivAccent, 0);
 
         /*
          * re-init cipher with the "normal" key
          */
-        cipher.init(true, new KeyParameter(encKey));
+        cipher.init(true, new KeyParameterImpl(encKey));
 
         f8ctx.J = 0; // initialize the counter
         f8ctx.S = new byte[BLKLEN]; // get the key stream buffer

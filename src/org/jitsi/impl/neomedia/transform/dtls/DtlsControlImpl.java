@@ -19,19 +19,32 @@ import java.io.*;
 import java.math.*;
 import java.security.*;
 import java.util.*;
+import java.security.spec.*;
+import java.security.interfaces.*;
 
 import org.bouncycastle.asn1.*;
 import org.bouncycastle.asn1.x500.*;
 import org.bouncycastle.asn1.x500.style.*;
 import org.bouncycastle.asn1.x509.*;
 import org.bouncycastle.cert.*;
-import org.bouncycastle.crypto.*;
-import org.bouncycastle.crypto.generators.*;
-import org.bouncycastle.crypto.params.*;
-import org.bouncycastle.crypto.tls.*;
+import org.bouncycastle.crypto.internal.*;
+import org.bouncycastle.crypto.general.*;
+import org.bouncycastle.crypto.internal.params.*;
+import org.bouncycastle.tls.*;
+import org.bouncycastle.tls.crypto.impl.jcajce.*;
 import org.bouncycastle.crypto.util.*;
+import org.bouncycastle.tls.crypto.TlsCrypto;
+import org.bouncycastle.tls.crypto.TlsCryptoProvider;
+import org.bouncycastle.crypto.internal.params.RsaKeyGenerationParameters;
+import org.bouncycastle.crypto.internal.params.RsaKeyParameters;
+
+import org.bouncycastle.crypto.asymmetric.AsymmetricKeyPair;
+import org.bouncycastle.crypto.asymmetric.AsymmetricRSAPrivateKey;
+import org.bouncycastle.crypto.asymmetric.AsymmetricRSAPublicKey;
+import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
+
+import org.bouncycastle.operator.jcajce.*;
 import org.bouncycastle.operator.*;
-import org.bouncycastle.operator.bc.*;
 import org.jitsi.impl.neomedia.*;
 import org.jitsi.service.libjitsi.*;
 import org.jitsi.service.neomedia.*;
@@ -251,15 +264,14 @@ public class DtlsControlImpl
      * Computes the fingerprint of a specific certificate using a specific
      * hash function.
      *
-     * @param certificate the certificate the fingerprint of which is to be
-     * computed
+     * @param encoded The ANS.1 DER encoded certificate.
      * @param hashFunction the hash function to be used in order to compute the
      * fingerprint of the specified <tt>certificate</tt>
      * @return the fingerprint of the specified <tt>certificate</tt> computed
      * using the specified <tt>hashFunction</tt>
      */
     private static String computeFingerprint(
-            org.bouncycastle.asn1.x509.Certificate certificate,
+            byte[] encoded,
             String hashFunction)
     {
         try
@@ -267,12 +279,16 @@ public class DtlsControlImpl
             AlgorithmIdentifier digAlgId
                 = new DefaultDigestAlgorithmIdentifierFinder().find(
                         hashFunction.toUpperCase());
-            Digest digest = BcDefaultDigestProvider.INSTANCE.get(digAlgId);
-            byte[] in = certificate.getEncoded(ASN1Encoding.DER);
-            byte[] out = new byte[digest.getDigestSize()];
 
-            digest.update(in, 0, in.length);
-            digest.doFinal(out, 0);
+            // JRT: Converted from BcDefaultDigestProvider to use Jca instead,
+            // which provides an output stream but supports ASN1Encoding.DER as well.
+            //
+            // Digest digest = BcDefaultDigestProvider.INSTANCE.get(digAlgId);
+            //
+            DigestCalculator digest = (new JcaDigestCalculatorProviderBuilder()).setProvider("BCFIPS").build().get(digAlgId);
+            digest.getOutputStream().write(encoded);
+
+            byte[] out = digest.getDigest();
 
             return toHex(out);
         }
@@ -310,12 +326,8 @@ public class DtlsControlImpl
             AlgorithmIdentifier sigAlgId = certificate.getSignatureAlgorithm();
             AlgorithmIdentifier digAlgId
                 = new DefaultDigestAlgorithmIdentifierFinder().find(sigAlgId);
-
-            return
-                BcDefaultDigestProvider.INSTANCE
-                    .get(digAlgId)
-                        .getAlgorithmName()
-                            .toLowerCase();
+            DefaultAlgorithmNameFinder finder = new DefaultAlgorithmNameFinder();
+            return finder.getAlgorithmName(digAlgId).toLowerCase();
         }
         catch (Throwable t)
         {
@@ -378,24 +390,35 @@ public class DtlsControlImpl
      * @return CertificateInfo a new certificate generated from a new key pair,
      * its hash function, and fingerprint
      */
-    private static CertificateInfo generateCertificateInfo()
+    private static CertificateInfo generateCertificateInfo() throws IOException
     {
-        AsymmetricCipherKeyPair keyPair = generateKeyPair();
+        AsymmetricKeyPair<AsymmetricRSAPublicKey, AsymmetricRSAPrivateKey> keyPair = generateKeyPair();
 
         org.bouncycastle.asn1.x509.Certificate x509Certificate
             = generateX509Certificate(generateCN(), keyPair);
 
-        org.bouncycastle.crypto.tls.Certificate certificate
-            = new org.bouncycastle.crypto.tls.Certificate(
-                    new org.bouncycastle.asn1.x509.Certificate[]
-                    {
-                        x509Certificate
-                    });
+        // JRT: All of this certificate conversion code is wrapped up in the Java Cryptography
+        // Architecture (JCA) implementation for BouncyCastle.
+        //
+        // There is no FIPS 'crypto' package wich performed
+        // these various functions for Jitsi Previously.
+        //
+        // This is basically setting ip the JCA implementation of these objects and using them
+        // to get a Tls Certificate instance from an X509 Certificate.
+        JcaTlsCryptoProvider provider = new JcaTlsCryptoProvider().setProvider("BCFIPS");
+        JcaTlsCrypto crypto = (JcaTlsCrypto)provider.create(new SecureRandom());
+
+        org.bouncycastle.tls.crypto.TlsCertificate[] certs = new org.bouncycastle.tls.crypto.TlsCertificate[] {
+            new JcaTlsCertificate(crypto, x509Certificate.getEncoded())
+        };
+        org.bouncycastle.tls.Certificate certificate
+            = new org.bouncycastle.tls.Certificate(certs);
+
         String localFingerprintHashFunction
             = findHashFunction(x509Certificate);
         String localFingerprint
             = computeFingerprint(
-                    x509Certificate,
+                    x509Certificate.getEncoded(ASN1Encoding.DER),
                     localFingerprintHashFunction);
 
         long timestamp = System.currentTimeMillis();
@@ -445,16 +468,13 @@ public class DtlsControlImpl
      *
      * @return a pair of private and public keys
      */
-    private static AsymmetricCipherKeyPair generateKeyPair()
+    private static AsymmetricKeyPair<AsymmetricRSAPublicKey, AsymmetricRSAPrivateKey> generateKeyPair()
     {
-        RSAKeyPairGenerator generator = new RSAKeyPairGenerator();
+        RSA.KeyPairGenerator generator = new RSA.KeyPairGenerator(
+                new RSA.KeyGenParameters(RSA_KEY_PUBLIC_EXPONENT,
+                    RSA_KEY_SIZE,
+                    RSA_KEY_SIZE_CERTAINTY), new SecureRandom());
 
-        generator.init(
-                new RSAKeyGenerationParameters(
-                        RSA_KEY_PUBLIC_EXPONENT,
-                        new SecureRandom(),
-                        RSA_KEY_SIZE,
-                        RSA_KEY_SIZE_CERTAINTY));
         return generator.generateKeyPair();
     }
 
@@ -472,7 +492,7 @@ public class DtlsControlImpl
     private static org.bouncycastle.asn1.x509.Certificate
         generateX509Certificate(
                 X500Name subject,
-                AsymmetricCipherKeyPair keyPair)
+                AsymmetricKeyPair<AsymmetricRSAPublicKey, AsymmetricRSAPrivateKey> keyPair)
     {
         // The signature algorithm of the generated certificate defaults to
         // SHA1. However, allow the overriding of the default via the
@@ -488,6 +508,10 @@ public class DtlsControlImpl
 
         try
         {
+
+            final AsymmetricRSAPublicKey pubKey = keyPair.getPublicKey();
+            AlgorithmIdentifier algID = new AlgorithmIdentifier(PKCSObjectIdentifiers.rsaEncryption, DERNull.INSTANCE);
+
             long now = System.currentTimeMillis();
             Date notBefore = new Date(now - ONE_DAY);
             Date notAfter = new Date(now + ONE_DAY * 6 + CERT_CACHE_EXPIRE_TIME);
@@ -499,17 +523,20 @@ public class DtlsControlImpl
                         notAfter,
                         subject,
                         /* publicKeyInfo */
-                            SubjectPublicKeyInfoFactory
-                                .createSubjectPublicKeyInfo(
-                                    keyPair.getPublic()));
+                        new SubjectPublicKeyInfo( // JRT: TODO: RECHECK this *may* work, not sure if SubjectPublicKeyInfo needs the encoded key.
+                                 algID,
+                                 pubKey.getEncoded()));
             AlgorithmIdentifier sigAlgId
                 = new DefaultSignatureAlgorithmIdentifierFinder()
                     .find(signatureAlgorithm);
             AlgorithmIdentifier digAlgId
                 = new DefaultDigestAlgorithmIdentifierFinder().find(sigAlgId);
-            ContentSigner signer
-                = new BcRSAContentSignerBuilder(sigAlgId, digAlgId)
-                    .build(keyPair.getPrivate());
+
+            PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyPair.getPrivateKey().getEncoded());
+            KeyFactory rsaFact = KeyFactory.getInstance("RSA");
+            RSAPrivateKey key = (RSAPrivateKey)rsaFact.generatePrivate(spec);
+
+            ContentSigner signer = new JcaContentSignerBuilder(signatureAlgorithm).build(key);
 
             return builder.build(signer).toASN1Structure();
         }
@@ -621,11 +648,16 @@ public class DtlsControlImpl
                     || certificateInfo.timestamp + CERT_CACHE_EXPIRE_TIME
                         < System.currentTimeMillis())
             {
-                // The cache doesn't exist yet or has outlived its lifetime.
-                // Rebuild the cache.
-                certificateInfoCache
-                    = certificateInfo
-                        = generateCertificateInfo();
+                try {
+                    // The cache doesn't exist yet or has outlived its lifetime.
+                    // Rebuild the cache.
+                    certificateInfoCache
+                        = certificateInfo
+                            = generateCertificateInfo();
+                }
+                catch(IOException e) {
+                    logger.error("Unable to generate certificate: " + e.getMessage());
+                }
             }
         }
         this.certificateInfo = certificateInfo;
@@ -827,7 +859,7 @@ public class DtlsControlImpl
      * via the signaling path
      */
     private void verifyAndValidateCertificate(
-            org.bouncycastle.asn1.x509.Certificate certificate)
+            java.security.cert.X509Certificate certificate)
         throws Exception
     {
         // RFC 4572 "Connection-Oriented Media Transport over the Transport
@@ -835,7 +867,17 @@ public class DtlsControlImpl
         // (SDP)" defines that "[a] certificate fingerprint MUST be computed
         // using the same one-way hash function as is used in the certificate's
         // signature algorithm."
-        String hashFunction = findHashFunction(certificate);
+        //
+        // JRT: It looks like java.security.cert.Certificate getSigAlgName gets
+        // something like SHA256WITHRSA:
+        // org/bouncycastle/operator/DefaultAlgorithmNameFinder.java:105
+        //
+        // This appears to be the same as is generated by DefaultAlgorithmNameFinder
+        // for org.bouncycastle.asn1.x509 certificates.
+        //
+        // getEncoded already returns an ASN.1 DER encoded byte array, so they
+        // should be comparable.
+        String hashFunction = certificate.getSigAlgName().toLowerCase();
 
         // As RFC 5763 "Framework for Establishing a Secure Real-time Transport
         // Protocol (SRTP) Security Context Using Datagram Transport Layer
@@ -890,7 +932,7 @@ public class DtlsControlImpl
                         + " function: " + hashFunction + "!");
         }
 
-        String fingerprint = computeFingerprint(certificate, hashFunction);
+        String fingerprint = computeFingerprint(certificate.getEncoded(), hashFunction);
 
         if (remoteFingerprint.equals(fingerprint))
         {
@@ -924,15 +966,25 @@ public class DtlsControlImpl
      * over the signaling path
      */
     boolean verifyAndValidateCertificate(
-            org.bouncycastle.crypto.tls.Certificate certificate)
+            org.bouncycastle.tls.Certificate certificate)
         throws Exception
     {
         boolean b = false;
 
         try
         {
-            org.bouncycastle.asn1.x509.Certificate[] certificateList
+            JcaTlsCryptoProvider provider = new JcaTlsCryptoProvider().setProvider("BCFIPS");
+            JcaTlsCrypto crypto = (JcaTlsCrypto)provider.create(new SecureRandom());
+
+            org.bouncycastle.tls.crypto.TlsCertificate[] tlsCertificateList
                 = certificate.getCertificateList();
+
+            java.security.cert.X509Certificate[] certificateList =
+                    new java.security.cert.X509Certificate[tlsCertificateList.length];
+            for (int i = 0; i < certificateList.length; ++i)
+            {
+                certificateList[i] = JcaTlsCertificate.convert(crypto, tlsCertificateList[i]).getX509Certificate();
+            }
 
             if (certificateList.length == 0)
             {
@@ -941,9 +993,10 @@ public class DtlsControlImpl
             }
             else
             {
-                for (org.bouncycastle.asn1.x509.Certificate x509Certificate
+                for (java.security.cert.X509Certificate x509Certificate
                         : certificateList)
                 {
+                    // x509Certificate.checkValidity();
                     verifyAndValidateCertificate(x509Certificate);
                 }
                 b = true;

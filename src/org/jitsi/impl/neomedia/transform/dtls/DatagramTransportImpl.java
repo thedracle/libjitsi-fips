@@ -19,7 +19,7 @@ import java.io.*;
 import java.util.*;
 import java.util.concurrent.*;
 
-import org.bouncycastle.crypto.tls.*;
+import org.bouncycastle.tls.*;
 import org.ice4j.ice.*;
 import org.jitsi.impl.neomedia.*;
 import org.jitsi.impl.neomedia.codec.video.h264.*;

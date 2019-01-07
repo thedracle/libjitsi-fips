@@ -38,7 +38,8 @@ import java.util.*;
 
 import javax.media.*;
 
-import org.bouncycastle.crypto.params.*;
+import org.bouncycastle.crypto.internal.params.*;
+import org.bouncycastle.crypto.internal.*;
 import org.jitsi.bccontrib.params.*;
 import org.jitsi.service.configuration.*;
 import org.jitsi.service.libjitsi.*;
@@ -70,7 +71,7 @@ import org.jitsi.util.*;
  * @author Lyubomir Marinov
  */
 public class SRTPCryptoContext
-    extends BaseSRTPCryptoContext
+    extends OverrideBaseSRTPCryptoContext
 {
     /**
      * The name of the <tt>boolean</tt> <tt>ConfigurationService</tt> property
@@ -409,16 +410,7 @@ public class SRTPCryptoContext
             switch (policy.getAuthType())
             {
             case SRTPPolicy.HMACSHA1_AUTHENTICATION:
-                mac.init(new KeyParameter(authKey));
-                break;
-
-            case SRTPPolicy.SKEIN_AUTHENTICATION:
-                // Skein MAC uses number of bits as MAC size, not just bytes
-                mac.init(
-                        new ParametersForSkein(
-                                new KeyParameter(authKey),
-                                ParametersForSkein.Skein512,
-                                tagStore.length * 8));
+                mac.init(new KeyParameterImpl(authKey));
                 break;
             }
 
@@ -606,13 +598,11 @@ public class SRTPCryptoContext
                     {
                     // Decrypt the packet using Counter Mode encryption.
                     case SRTPPolicy.AESCM_ENCRYPTION:
-                    case SRTPPolicy.TWOFISH_ENCRYPTION:
                         processPacketAESCM(pkt);
                         break;
 
                     // Decrypt the packet using F8 Mode encryption.
                     case SRTPPolicy.AESF8_ENCRYPTION:
-                    case SRTPPolicy.TWOFISHF8_ENCRYPTION:
                         processPacketAESF8(pkt);
                         break;
                     }
@@ -682,13 +672,11 @@ public class SRTPCryptoContext
         {
         // Encrypt the packet using Counter Mode encryption.
         case SRTPPolicy.AESCM_ENCRYPTION:
-        case SRTPPolicy.TWOFISH_ENCRYPTION:
             processPacketAESCM(pkt);
             break;
 
         // Encrypt the packet using F8 Mode encryption.
         case SRTPPolicy.AESF8_ENCRYPTION:
-        case SRTPPolicy.TWOFISHF8_ENCRYPTION:   
             processPacketAESF8(pkt);
             break;
         }

@@ -31,13 +31,34 @@
       <artifactId>jna</artifactId>
     </dependency>
     <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcpkix-jdk15on</artifactId>
+        <version>1.0</version>
+        <scope>system</scope>
+        <systemPath>${project.basedir}/lib/bcpkix-fips-1.0.1.jar</systemPath>
+    </dependency>
+    <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcprov-jdk15on</artifactId>
+        <version>1.0</version>
+        <scope>system</scope>
+        <systemPath>${project.basedir}/lib/bc-fips-1.0.1.jar</systemPath>
+    </dependency>
+     <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bctls-jdk15on</artifactId>
+        <version>1.0</version>
+        <scope>system</scope>
+        <systemPath>${project.basedir}/lib/bctls-fips-1.0.5.jar</systemPath>
+    </dependency>
+   <!--<dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcpkix-jdk15on</artifactId>
     </dependency>
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcprov-jdk15on</artifactId>
-    </dependency>
+    </dependency>-->
     <!-- org.jitsi -->
     <dependency>
       <groupId>${project.groupId}</groupId>

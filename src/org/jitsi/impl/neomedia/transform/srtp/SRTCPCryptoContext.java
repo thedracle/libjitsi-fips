@@ -17,7 +17,8 @@ package org.jitsi.impl.neomedia.transform.srtp;
 
 import java.util.*;
 
-import org.bouncycastle.crypto.params.*;
+import org.bouncycastle.crypto.internal.params.*;
+import org.bouncycastle.crypto.internal.*;
 import org.jitsi.bccontrib.params.*;
 import org.jitsi.service.neomedia.*;
 
@@ -46,7 +47,7 @@ import org.jitsi.service.neomedia.*;
  * @author Lyubomir Marinov
  */
 public class SRTCPCryptoContext
-    extends BaseSRTPCryptoContext
+    extends OverrideBaseSRTPCryptoContext
 {
     /**
      * Index received so far
@@ -175,16 +176,7 @@ public class SRTCPCryptoContext
             switch (policy.getAuthType())
             {
             case SRTPPolicy.HMACSHA1_AUTHENTICATION:
-                mac.init(new KeyParameter(authKey));
-                break;
-
-            case SRTPPolicy.SKEIN_AUTHENTICATION:
-                // Skein MAC uses number of bits as MAC size, not just bytes
-                mac.init(
-                        new ParametersForSkein(
-                                new KeyParameter(authKey),
-                                ParametersForSkein.Skein512,
-                                tagStore.length * 8));
+                mac.init(new KeyParameterImpl(authKey));
                 break;
             }
 
@@ -347,15 +339,13 @@ public class SRTCPCryptoContext
         if (decrypt)
         {
             /* Decrypt the packet using Counter Mode encryption */
-            if (policy.getEncType() == SRTPPolicy.AESCM_ENCRYPTION
-                    || policy.getEncType() == SRTPPolicy.TWOFISH_ENCRYPTION)
+            if (policy.getEncType() == SRTPPolicy.AESCM_ENCRYPTION)
             {
                 processPacketAESCM(pkt, index);
             }
 
             /* Decrypt the packet using F8 Mode encryption */
-            else if (policy.getEncType() == SRTPPolicy.AESF8_ENCRYPTION
-                    || policy.getEncType() == SRTPPolicy.TWOFISHF8_ENCRYPTION)
+            else if (policy.getEncType() == SRTPPolicy.AESF8_ENCRYPTION)
             {
                 processPacketAESF8(pkt, index);
             }
@@ -384,16 +374,14 @@ public class SRTCPCryptoContext
     {
         boolean encrypt = false;
         /* Encrypt the packet using Counter Mode encryption */
-        if (policy.getEncType() == SRTPPolicy.AESCM_ENCRYPTION ||
-                policy.getEncType() == SRTPPolicy.TWOFISH_ENCRYPTION)
+        if (policy.getEncType() == SRTPPolicy.AESCM_ENCRYPTION)
         {
             processPacketAESCM(pkt, sentIndex);
             encrypt = true;
         }
 
         /* Encrypt the packet using F8 Mode encryption */
-        else if (policy.getEncType() == SRTPPolicy.AESF8_ENCRYPTION ||
-                policy.getEncType() == SRTPPolicy.TWOFISHF8_ENCRYPTION)
+        else if (policy.getEncType() == SRTPPolicy.AESF8_ENCRYPTION)
         {
             processPacketAESF8(pkt, sentIndex);
             encrypt = true;

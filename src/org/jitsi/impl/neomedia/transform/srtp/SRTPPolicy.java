@@ -34,19 +34,10 @@ public class SRTPPolicy
     public final static int AESCM_ENCRYPTION = 1;
 
     /**
-     * Counter Mode TwoFish Cipher
-     */
-    public final static int TWOFISH_ENCRYPTION = 3;
-
-    /**
      * F8 mode AES Cipher, defined in Section 4.1.2, RFC 3711
      */
     public final static int AESF8_ENCRYPTION = 2;
 
-    /**
-     * F8 Mode TwoFish Cipher
-     */
-    public final static int TWOFISHF8_ENCRYPTION = 4;
     /**
      * Null Authentication, no authentication
      */
@@ -56,11 +47,6 @@ public class SRTPPolicy
      * HAMC SHA1 Authentication, defined in Section 4.2.1, RFC3711
      */
     public final static int HMACSHA1_AUTHENTICATION = 1;
-
-    /**
-     * Skein Authentication
-     */
-    public final static int SKEIN_AUTHENTICATION = 2;
 
     /**
      * SRTP encryption type

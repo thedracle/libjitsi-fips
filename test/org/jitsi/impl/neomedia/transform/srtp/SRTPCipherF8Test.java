@@ -3,8 +3,9 @@ package org.jitsi.impl.neomedia.transform.srtp;
 import static org.junit.Assert.*;
 import java.util.Arrays;
 import javax.xml.bind.DatatypeConverter;
-import org.bouncycastle.crypto.engines.*;
+import org.bouncycastle.crypto.general.*;
 import org.junit.*;
+import org.bouncycastle.crypto.fips.WrapAESEngine;
 
 public class SRTPCipherF8Test
 {
@@ -26,11 +27,6 @@ public class SRTPCipherF8Test
         DatatypeConverter.parseHexBinary("019ce7a26e7854014a6366aa95d4eefd"
             + "1ad4172a14f9faf455b7f1d4b62bd08f" + "562c0eef7c4802");
 
-    // Generated with our own implementation
-    public static final byte[] TV_Cipher_TwoFish =
-        DatatypeConverter.parseHexBinary("346d91e0d4c3908c476ba25f2792fbb6"
-            + "5456f2d90736f40353da7865a8989f01" + "947f6f09385fb5");
-
     /**
      * Validate our F8 mode implementation with tests vectors provided in
      * RFC3711
@@ -40,29 +36,12 @@ public class SRTPCipherF8Test
     @Test
     public void testAES() throws Exception
     {
-        SRTPCipherF8 cipher = new SRTPCipherF8(new AESFastEngine());
+        SRTPCipherF8 cipher = new SRTPCipherF8(new WrapAESEngine());
         cipher.init(TV_Key, TV_Salt);
         byte[] data = Arrays.copyOf(TV_Plain, TV_Plain.length);
         byte[] iv = Arrays.copyOf(TV_IV, TV_IV.length);
         cipher.process(data, 0, data.length, iv);
 
         assertArrayEquals(data, TV_Cipher_AES);
-    }
-
-    /**
-     * Validate our F8 mode implementation work with TwoFish
-     * 
-     * @throws Exception
-     */
-    @Test
-    public void testTwoFish() throws Exception
-    {
-        SRTPCipherF8 cipher = new SRTPCipherF8(new TwofishEngine());
-        cipher.init(TV_Key, TV_Salt);
-        byte[] data = Arrays.copyOf(TV_Plain, TV_Plain.length);
-        byte[] iv = Arrays.copyOf(TV_IV, TV_IV.length);
-        cipher.process(data, 0, data.length, iv);
-
-        assertArrayEquals(data, TV_Cipher_TwoFish);
     }
 }

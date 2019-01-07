@@ -15,11 +15,11 @@
  */
 package org.jitsi.impl.neomedia.transform.srtp;
 
-import org.bouncycastle.crypto.*;
-import org.bouncycastle.crypto.params.*;
+import org.bouncycastle.crypto.internal.*;
+import org.bouncycastle.crypto.internal.params.*;
 
 /**
- * Implements the interface <tt>org.bouncycastle.crypto.Mac</tt> using the
+ * Implements the interface <tt>org.bouncycastle.crypto.internal.Mac</tt> using the
  * OpenSSL Crypto library.
  *
  * @author Lyubomir Marinov

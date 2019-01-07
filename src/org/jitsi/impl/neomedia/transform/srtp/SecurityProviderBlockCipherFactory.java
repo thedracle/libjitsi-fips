@@ -19,7 +19,7 @@ import java.security.*;
 
 import javax.crypto.*;
 
-import org.bouncycastle.crypto.*;
+import org.bouncycastle.crypto.internal.*;
 
 /**
  * Implements a <tt>BlockCipherFactory</tt> which initializes

@@ -18,8 +18,18 @@ package org.jitsi.impl.neomedia.transform.dtls;
 import java.io.*;
 import java.util.*;
 
-import org.bouncycastle.crypto.tls.*;
+import org.bouncycastle.tls.*;
 import org.jitsi.util.*;
+
+import java.security.SecureRandom;
+
+import org.bouncycastle.tls.crypto.impl.jcajce.*;
+import org.bouncycastle.tls.crypto.TlsCrypto;
+import org.bouncycastle.tls.crypto.TlsCryptoProvider;
+import org.bouncycastle.tls.DefaultTlsCredentialedSigner;
+import org.bouncycastle.tls.crypto.TlsCryptoParameters;
+
+
 
 /**
  * Implements {@link TlsServer} for the purposes of supporting DTLS-SRTP.
@@ -56,17 +66,19 @@ public class TlsServerImpl
      */
     private final DtlsPacketTransformer packetTransformer;
 
-    /**
-     *
-     * @see DefaultTlsServer#getRSAEncryptionCredentials()
-     */
-    private TlsEncryptionCredentials rsaEncryptionCredentials;
+    private static JcaTlsCrypto tlsCrypto = null;
 
-    /**
-     *
-     * @see DefaultTlsServer#getRSASignerCredentials()
-     */
-    private TlsSignerCredentials rsaSignerCredentials;
+    // Generate a TlsCrypto using BouncyCastle's Java Cryptography Architecture implementation that provides
+    // FIPS compliant cryptography.
+    static JcaTlsCrypto serverCrypto() {
+        // Lazy initialize
+        if(tlsCrypto == null) {
+            JcaTlsCryptoProvider provider = new JcaTlsCryptoProvider().setProvider("BCFIPS");
+            tlsCrypto = (JcaTlsCrypto)provider.create(new SecureRandom());
+        }
+        return tlsCrypto;
+    }
+
 
     /**
      * Initializes a new <tt>TlsServerImpl</tt> instance.
@@ -76,6 +88,7 @@ public class TlsServerImpl
      */
     public TlsServerImpl(DtlsPacketTransformer packetTransformer)
     {
+        super(TlsServerImpl.serverCrypto());
         this.packetTransformer = packetTransformer;
     }
 
@@ -183,63 +196,6 @@ public class TlsServerImpl
     /**
      * {@inheritDoc}
      *
-     * Depending on the <tt>selectedCipherSuite</tt>, <tt>DefaultTlsServer</tt>
-     * will require either <tt>rsaEncryptionCredentials</tt> or
-     * <tt>rsaSignerCredentials</tt> neither of which is implemented by
-     * <tt>DefaultTlsServer</tt>.
-     */
-    @Override
-    protected TlsEncryptionCredentials getRSAEncryptionCredentials()
-        throws IOException
-    {
-        if (rsaEncryptionCredentials == null)
-        {
-            CertificateInfo certificateInfo
-                = getDtlsControl().getCertificateInfo();
-
-            rsaEncryptionCredentials
-                = new DefaultTlsEncryptionCredentials(
-                        context,
-                        certificateInfo.getCertificate(),
-                        certificateInfo.getKeyPair().getPrivate());
-        }
-        return rsaEncryptionCredentials;
-    }
-
-    /**
-     * {@inheritDoc}
-     *
-     * Depending on the <tt>selectedCipherSuite</tt>, <tt>DefaultTlsServer</tt>
-     * will require either <tt>rsaEncryptionCredentials</tt> or
-     * <tt>rsaSignerCredentials</tt> neither of which is implemented by
-     * <tt>DefaultTlsServer</tt>.
-     */
-    @Override
-    protected TlsSignerCredentials getRSASignerCredentials()
-        throws IOException
-    {
-        if (rsaSignerCredentials == null)
-        {
-            CertificateInfo certificateInfo
-                = getDtlsControl().getCertificateInfo();
-
-            // FIXME The signature and hash algorithms should be retrieved from
-            // the certificate.
-            rsaSignerCredentials
-                = new DefaultTlsSignerCredentials(
-                        context,
-                        certificateInfo.getCertificate(),
-                        certificateInfo.getKeyPair().getPrivate(),
-                        new SignatureAndHashAlgorithm(
-                                HashAlgorithm.sha1,
-                                SignatureAlgorithm.rsa));
-        }
-        return rsaSignerCredentials;
-    }
-
-    /**
-     * {@inheritDoc}
-     *
      * Includes the <tt>use_srtp</tt> extension in the DTLS extended server
      * hello.
      */
@@ -336,7 +292,7 @@ public class TlsServerImpl
                     checkServerExtensions());
         }
 
-        if (TlsECCUtils.isECCCipherSuite(selectedCipherSuite))
+        if (TlsECCUtils.isECCipherSuite(selectedCipherSuite))
         {
             /*
              * RFC 4492 5.2. A server that selects an ECC cipher suite in

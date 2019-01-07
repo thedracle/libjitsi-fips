@@ -18,7 +18,17 @@ package org.jitsi.impl.neomedia.transform.dtls;
 import java.io.*;
 import java.util.*;
 
-import org.bouncycastle.crypto.tls.*;
+import org.bouncycastle.tls.crypto.impl.jcajce.*;
+import org.bouncycastle.tls.crypto.TlsCrypto;
+import org.bouncycastle.tls.crypto.TlsCryptoProvider;
+import org.bouncycastle.tls.DefaultTlsCredentialedSigner;
+import org.bouncycastle.tls.crypto.TlsCryptoParameters;
+
+import java.security.*;
+import java.security.spec.*;
+import java.security.interfaces.*;
+
+import org.bouncycastle.tls.*;
 import org.jitsi.util.*;
 
 /**
@@ -57,6 +67,19 @@ public class TlsClientImpl
      */
     private final DtlsPacketTransformer packetTransformer;
 
+    private static JcaTlsCrypto tlsCrypto = null;
+
+    // Generate a TlsCrypto using BouncyCastle's Java Cryptography Architecture implementation that provides
+    // FIPS compliant cryptography.
+    static JcaTlsCrypto clientCrypto() {
+        // Lazy initialize
+        if(tlsCrypto == null) {
+            JcaTlsCryptoProvider provider = new JcaTlsCryptoProvider().setProvider("BCFIPS");
+            tlsCrypto = (JcaTlsCrypto)provider.create(new SecureRandom());
+        }
+        return tlsCrypto;
+    }
+
     /**
      * Initializes a new <tt>TlsClientImpl</tt> instance.
      *
@@ -65,6 +88,9 @@ public class TlsClientImpl
      */
     public TlsClientImpl(DtlsPacketTransformer packetTransformer)
     {
+        // DefaultTlsClient now requires we provide a TlsCrypto object.
+        super(TlsClientImpl.clientCrypto());
+
         this.packetTransformer = packetTransformer;
     }
 
@@ -344,16 +370,34 @@ public class TlsClientImpl
                 CertificateInfo certificateInfo
                     = getDtlsControl().getCertificateInfo();
 
+                org.bouncycastle.tls.Certificate cert = certificateInfo.getCertificate();
+
                 // FIXME The signature and hash algorithms should be retrieved
                 // from the certificate.
-                clientCredentials
-                    = new DefaultTlsSignerCredentials(
-                            context,
-                            certificateInfo.getCertificate(),
-                            certificateInfo.getKeyPair().getPrivate(),
-                            new SignatureAndHashAlgorithm(
-                                    HashAlgorithm.sha1,
-                                    SignatureAlgorithm.rsa));
+                short certificateType = cert.getCertificateAt(0).getClientCertificateType();
+                short signatureAlgorithm = TlsUtils.getSignatureAlgorithmClient(certificateType);
+                SignatureAndHashAlgorithm sigAlg = TlsUtils.chooseSignatureAndHashAlgorithm(context,
+                        supportedSignatureAlgorithms, signatureAlgorithm);
+
+                try {
+                    PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(certificateInfo.getKeyPair().getPrivateKey().getEncoded());
+                    KeyFactory rsaFact = KeyFactory.getInstance("RSA");
+                    RSAPrivateKey privateKey = (RSAPrivateKey)rsaFact.generatePrivate(spec);
+
+
+                    // TODO[jsse] Need to have TlsCrypto construct the credentials from the certs/key
+                    clientCredentials = new JcaDefaultTlsCredentialedSigner(new TlsCryptoParameters(context), TlsClientImpl.clientCrypto(),
+                            privateKey, cert, new SignatureAndHashAlgorithm(
+                                HashAlgorithm.sha1,
+                                SignatureAlgorithm.rsa));
+                    }
+                catch(NoSuchAlgorithmException algEx) {
+                    logger.error("Unable to produce RSA Key using KeyFactory: " + algEx.getMessage());
+                }
+                catch(InvalidKeySpecException invalidKeySpecEx) {
+                    logger.error("Unable to initialize PKCS8EncodedKeySpec, invalid key spec exception raised: " + invalidKeySpecEx.getMessage());
+                }
+
             }
             return clientCredentials;
         }
@@ -362,13 +406,13 @@ public class TlsClientImpl
          * {@inheritDoc}
          */
         @Override
-        public void notifyServerCertificate(Certificate serverCertificate)
+        public void notifyServerCertificate(TlsServerCertificate serverCertificate)
             throws IOException
         {
             try
             {
                 getDtlsControl().verifyAndValidateCertificate(
-                        serverCertificate);
+                        serverCertificate.getCertificate());
             }
             catch (Exception e)
             {

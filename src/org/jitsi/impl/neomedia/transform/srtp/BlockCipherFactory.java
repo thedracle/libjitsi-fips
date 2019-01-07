@@ -15,7 +15,7 @@
  */
 package org.jitsi.impl.neomedia.transform.srtp;
 
-import org.bouncycastle.crypto.*;
+import org.bouncycastle.crypto.internal.*;
 
 /**
  * Defines the application programming interface (API) of a factory of
