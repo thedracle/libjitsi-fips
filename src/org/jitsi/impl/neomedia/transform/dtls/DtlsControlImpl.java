@@ -43,6 +43,7 @@ import org.bouncycastle.crypto.asymmetric.AsymmetricRSAPrivateKey;
 import org.bouncycastle.crypto.asymmetric.AsymmetricRSAPublicKey;
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
 
+import org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider;
 import org.bouncycastle.operator.jcajce.*;
 import org.bouncycastle.operator.*;
 import org.jitsi.impl.neomedia.*;
@@ -50,6 +51,10 @@ import org.jitsi.service.libjitsi.*;
 import org.jitsi.service.neomedia.*;
 import org.jitsi.service.version.*;
 import org.jitsi.util.*;
+
+
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 /**
  * Implements {@link DtlsControl} i.e. {@link SrtpControl} for DTLS-SRTP.
@@ -200,6 +205,8 @@ public class DtlsControlImpl
      */
     private static CertificateInfo certificateInfoCache;
 
+    private static BouncyCastleFipsProvider bcFipsProvider = new BouncyCastleFipsProvider();
+
     static
     {
         // Set configurable options using ConfigurationService.
@@ -285,7 +292,7 @@ public class DtlsControlImpl
             //
             // Digest digest = BcDefaultDigestProvider.INSTANCE.get(digAlgId);
             //
-            DigestCalculator digest = (new JcaDigestCalculatorProviderBuilder()).setProvider("BCFIPS").build().get(digAlgId);
+            DigestCalculator digest = (new JcaDigestCalculatorProviderBuilder()).setProvider(bcFipsProvider).build().get(digAlgId);
             digest.getOutputStream().write(encoded);
 
             byte[] out = digest.getDigest();
@@ -327,7 +334,19 @@ public class DtlsControlImpl
             AlgorithmIdentifier digAlgId
                 = new DefaultDigestAlgorithmIdentifierFinder().find(sigAlgId);
             DefaultAlgorithmNameFinder finder = new DefaultAlgorithmNameFinder();
-            return finder.getAlgorithmName(digAlgId).toLowerCase();
+
+            Pattern digestName = Pattern.compile("([a-zA-Z]+)(\\d+)");
+            String digestAlgorithmName = finder.getAlgorithmName(digAlgId).toLowerCase();
+            Matcher digestMatcher = digestName.matcher(digestAlgorithmName);
+
+            // Add dash in between algorithm components because DefaultAlgorithmNameFinder resolves sha256 or sha1 instead
+            // of sha-256 or sha-1.
+            if(digestMatcher.find()) {
+                String withDash = String.format("%s-%s", digestMatcher.group(1), digestMatcher.group(2));
+                return withDash;
+            }
+
+            return "sha-256";
         }
         catch (Throwable t)
         {
@@ -400,12 +419,12 @@ public class DtlsControlImpl
         // JRT: All of this certificate conversion code is wrapped up in the Java Cryptography
         // Architecture (JCA) implementation for BouncyCastle.
         //
-        // There is no FIPS 'crypto' package wich performed
+        // There is no FIPS 'crypto' package which performed
         // these various functions for Jitsi Previously.
         //
         // This is basically setting ip the JCA implementation of these objects and using them
         // to get a Tls Certificate instance from an X509 Certificate.
-        JcaTlsCryptoProvider provider = new JcaTlsCryptoProvider().setProvider("BCFIPS");
+        JcaTlsCryptoProvider provider = new JcaTlsCryptoProvider().setProvider(bcFipsProvider);
         JcaTlsCrypto crypto = (JcaTlsCrypto)provider.create(new SecureRandom());
 
         org.bouncycastle.tls.crypto.TlsCertificate[] certs = new org.bouncycastle.tls.crypto.TlsCertificate[] {
@@ -501,7 +520,7 @@ public class DtlsControlImpl
             = ConfigUtils.getString(
                     LibJitsi.getConfigurationService(),
                     PROP_SIGNATURE_ALGORITHM,
-                    "SHA1withRSA");
+                    "SHA256withRSA");
 
         if (logger.isDebugEnabled())
             logger.debug("Signature algorithm: " + signatureAlgorithm);
@@ -973,7 +992,7 @@ public class DtlsControlImpl
 
         try
         {
-            JcaTlsCryptoProvider provider = new JcaTlsCryptoProvider().setProvider("BCFIPS");
+            JcaTlsCryptoProvider provider = new JcaTlsCryptoProvider().setProvider(bcFipsProvider);
             JcaTlsCrypto crypto = (JcaTlsCrypto)provider.create(new SecureRandom());
 
             org.bouncycastle.tls.crypto.TlsCertificate[] tlsCertificateList

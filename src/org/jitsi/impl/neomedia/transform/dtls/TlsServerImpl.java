@@ -24,6 +24,7 @@ import org.jitsi.util.*;
 import java.security.SecureRandom;
 
 import org.bouncycastle.tls.crypto.impl.jcajce.*;
+import org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider;
 import org.bouncycastle.tls.crypto.TlsCrypto;
 import org.bouncycastle.tls.crypto.TlsCryptoProvider;
 import org.bouncycastle.tls.DefaultTlsCredentialedSigner;
@@ -68,12 +69,15 @@ public class TlsServerImpl
 
     private static JcaTlsCrypto tlsCrypto = null;
 
+
+    private static BouncyCastleFipsProvider bcFipsProvider = new BouncyCastleFipsProvider();
+
     // Generate a TlsCrypto using BouncyCastle's Java Cryptography Architecture implementation that provides
     // FIPS compliant cryptography.
     static JcaTlsCrypto serverCrypto() {
         // Lazy initialize
         if(tlsCrypto == null) {
-            JcaTlsCryptoProvider provider = new JcaTlsCryptoProvider().setProvider("BCFIPS");
+            JcaTlsCryptoProvider provider = new JcaTlsCryptoProvider().setProvider(bcFipsProvider);
             tlsCrypto = (JcaTlsCrypto)provider.create(new SecureRandom());
         }
         return tlsCrypto;
