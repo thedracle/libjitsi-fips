@@ -283,9 +283,10 @@ public class DtlsControlImpl
     {
         try
         {
+            logger.info(String.format("Searching for digest algorithm from %s\n", hashFunction.toUpperCase()));
             AlgorithmIdentifier digAlgId
                 = new DefaultDigestAlgorithmIdentifierFinder().find(
-                        hashFunction.toUpperCase());
+                        "SHA256");
 
             // JRT: Converted from BcDefaultDigestProvider to use Jca instead,
             // which provides an output stream but supports ASN1Encoding.DER as well.
@@ -542,9 +543,9 @@ public class DtlsControlImpl
                         notAfter,
                         subject,
                         /* publicKeyInfo */
-                        new SubjectPublicKeyInfo( // JRT: TODO: RECHECK this *may* work, not sure if SubjectPublicKeyInfo needs the encoded key.
-                                 algID,
-                                 pubKey.getEncoded()));
+                        new SubjectPublicKeyInfo(algID,
+                            new org.bouncycastle.asn1.pkcs.RSAPublicKey(
+                                pubKey.getModulus(), pubKey.getPublicExponent())));
             AlgorithmIdentifier sigAlgId
                 = new DefaultSignatureAlgorithmIdentifierFinder()
                     .find(signatureAlgorithm);
@@ -913,6 +914,9 @@ public class DtlsControlImpl
             }
 
             Map<String,String> remoteFingerprints = this.remoteFingerprints;
+            for(String algorithm : remoteFingerprints.keySet()) {
+                logger.info(String.format("REMOTE Fingerprint Algorithm: %s, %s", algorithm, remoteFingerprints.get(algorithm)));
+            }
 
             if (remoteFingerprints == null)
             {
@@ -920,7 +924,7 @@ public class DtlsControlImpl
                         "No fingerprints declared over the signaling path!");
             }
 
-            remoteFingerprint = remoteFingerprints.get(hashFunction);
+            remoteFingerprint = remoteFingerprints.get("sha-256");
 
             // Unfortunately, Firefox does not comply with RFC 5763 at the time
             // of this writing. Its certificate uses SHA-1 and it sends a
@@ -948,7 +952,7 @@ public class DtlsControlImpl
         {
             throw new IOException(
                     "No fingerprint declared over the signaling path with hash"
-                        + " function: " + hashFunction + "!");
+                    + " function: " + hashFunction + "!");
         }
 
         String fingerprint = computeFingerprint(certificate.getEncoded(), hashFunction);
@@ -1002,6 +1006,7 @@ public class DtlsControlImpl
                     new java.security.cert.X509Certificate[tlsCertificateList.length];
             for (int i = 0; i < certificateList.length; ++i)
             {
+                logger.info(String.format("TLS Signing Algorithm: %s", tlsCertificateList[i].getSigAlgOID()));
                 certificateList[i] = JcaTlsCertificate.convert(crypto, tlsCertificateList[i]).getX509Certificate();
             }
 
