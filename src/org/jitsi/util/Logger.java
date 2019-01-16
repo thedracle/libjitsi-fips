@@ -49,7 +49,11 @@ public abstract class Logger
     public static Logger getLogger(String name)
         throws NullPointerException
     {
-        return new LoggerImpl(java.util.logging.Logger.getLogger(name));
+        Logger logger = new LoggerImpl(java.util.logging.Logger.getLogger(name));
+        // TODO: Undo This! Debug all
+        logger.setLevelAll();
+
+        return logger;
     }
 
     /**

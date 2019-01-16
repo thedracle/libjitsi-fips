@@ -638,6 +638,19 @@ public class DtlsPacketTransformer
         default:
             throw new IllegalArgumentException("srtpProtectionProfile");
         }
+        if(tlsContext == null) {
+            logger.info("JRT: DtlsPacketTransformer before exportKeyingMaterial TLSContext is NULL ");
+
+        }
+        else if(tlsContext.getSecurityParameters() == null) {
+            logger.info("JRT: DtlsPacketTransformer before exportKeyingMaterial TLSContext is SECURITY PARAMETERS NULL.");
+        }
+        else if(tlsContext.getSecurityParameters().getMasterSecret() == null) {
+            logger.info(String.format("JRT: DtlsPacketTransformer before exportKeyingMaterial, master secret is NULL, SP: %s!", tlsContext.getSecurityParameters()));
+        }
+        else {
+            logger.info(String.format("JRT: DtlsPacketTransformer before exportKeyingMaterial SecurityContext: %s, MasterSecret: %s.", tlsContext.getSecurityParameters(), tlsContext.getSecurityParameters().getMasterSecret()));
+        }
 
         byte[] keyingMaterial
             = tlsContext.exportKeyingMaterial(
@@ -986,10 +999,39 @@ public class DtlsPacketTransformer
                     break;
                 try
                 {
+
+                    TlsContext checkContext = tlsClient.getContext();
+                    if(checkContext == null) {
+                        logger.info("JRT: DtlsPacketTransformer TLSContext is NULL ");
+
+                    }
+                    else if(checkContext.getSecurityParameters() == null) {
+                        logger.info("JRT: DtlsPacketTransformer TLSContext is SECURITY PARAMETERS NULL.");
+                    }
+                    else {
+                        logger.info(String.format("JRT: DtlsPacketTransformer SecurityContext: %s.", checkContext.getSecurityParameters()));
+                    }
+
                     dtlsTransport
                         = dtlsClientProtocol.connect(
-                                tlsClient, 
+                                tlsClient,
                                 datagramTransport);
+                    checkContext = tlsClient.getContext();
+                    if(checkContext == null) {
+                        logger.info("JRT: AFTER connect DtlsPacketTransformer TLSContext is NULL ");
+
+                    }
+                    else if(checkContext.getSecurityParameters() == null) {
+                        logger.info("JRT: AFTER connect DtlsPacketTransformer TLSContext is SECURITY PARAMETERS NULL.");
+                    }
+                    else if(checkContext.getSecurityParameters().getMasterSecret() == null) {
+                        logger.info("JRT: AFTER connect DtlsPacketTransformer TLSContext is MASTER SECRET IS NULL.");
+                    }
+
+                    else {
+                        logger.info(String.format("JRT: AFTER connect DtlsPacketTransformer SecurityContext: %s, masterSecret: %s.", checkContext.getSecurityParameters(), checkContext.getSecurityParameters().getMasterSecret()));
+                    }
+
                     break;
                 }
                 catch (IOException ioe)
@@ -1230,7 +1272,7 @@ public class DtlsPacketTransformer
 
         if (DtlsControl.Setup.ACTIVE.equals(setup))
         {
-            dtlsProtocolObj = new DTLSClientProtocol();
+            dtlsProtocolObj = new DTLSClientProtocolWrapper();
             tlsPeer = new TlsClientImpl(this);
         }
         else
@@ -1257,6 +1299,9 @@ public class DtlsPacketTransformer
                                 dtlsProtocolObj,
                                 tlsPeer,
                                 datagramTransport);
+                    }
+                    catch(Exception e) {
+                        e.printStackTrace();
                     }
                     finally
                     {
