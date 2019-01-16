@@ -51,7 +51,7 @@ public abstract class Logger
     {
         Logger logger = new LoggerImpl(java.util.logging.Logger.getLogger(name));
         // TODO: Undo This! Debug all
-        logger.setLevelAll();
+        // logger.setLevelAll();
 
         return logger;
     }

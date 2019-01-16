@@ -1016,6 +1016,8 @@ public class DtlsPacketTransformer
                         = dtlsClientProtocol.connect(
                                 tlsClient,
                                 datagramTransport);
+                    logger.info("JRT: AFTER connect DtlsPacketTransformer");
+
                     checkContext = tlsClient.getContext();
                     if(checkContext == null) {
                         logger.info("JRT: AFTER connect DtlsPacketTransformer TLSContext is NULL ");

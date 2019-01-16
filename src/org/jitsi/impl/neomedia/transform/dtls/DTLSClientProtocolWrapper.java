@@ -134,19 +134,17 @@ public class DTLSClientProtocolWrapper extends DTLSClientProtocol {
                 }
             }
 
+            LOG.warning("JRT: Before Client Handshake.");
             try
             {
-                Method[] methods = DTLSClientProtocol.class.getDeclaredMethods();
-                for(Method m : methods) { // TODO: REMOVE DEBUG CODE
-                    LOG.log(Level.SEVERE, "METHOD " + m.toString());
-                }
-
                 Method clientHandshake = DTLSClientProtocol.class.getDeclaredMethod("clientHandshake", state.getClass(), dtlsRecorderLayerClass);
                 return (DTLSTransport)clientHandshake.invoke(this, state, recordLayer);
                 // return clientHandshake(state, recordLayer);
             }
             catch (Exception e)
             {
+                LOG.warning("JRT: RECEIVED EXCEPTION" + e);
+
                 if(e instanceof TlsFatalAlert) {
                     Method abortClientHandshake = super.getClass().getDeclaredMethod("abortClientHandshake", state.getClass(), dtlsRecorderLayerClass, Short.TYPE);
                     abortClientHandshake.invoke(this, state, recordLayer, ((TlsFatalAlert)e).getAlertDescription());
@@ -184,6 +182,8 @@ public class DTLSClientProtocolWrapper extends DTLSClientProtocol {
             e.printStackTrace();
         }
         catch(Exception e) {
+            LOG.warning("JRT: THROWING GENERAL EXCEPTION " + e);
+
             throw e;
         }
         return null;
