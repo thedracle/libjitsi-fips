@@ -70,15 +70,22 @@ public class TlsServerImpl
     private static JcaTlsCrypto tlsCrypto = null;
 
 
-    private static BouncyCastleFipsProvider bcFipsProvider = new BouncyCastleFipsProvider();
-
     // Generate a TlsCrypto using BouncyCastle's Java Cryptography Architecture implementation that provides
     // FIPS compliant cryptography.
     static JcaTlsCrypto serverCrypto() {
+        SecureRandom rnumGen = null;
+        try {
+            rnumGen = SecureRandom.getInstance("DEFAULT", "BCFIPS");
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+            rnumGen = new SecureRandom();
+        }
+
         // Lazy initialize
         if(tlsCrypto == null) {
-            JcaTlsCryptoProvider provider = new JcaTlsCryptoProvider().setProvider(bcFipsProvider);
-            tlsCrypto = (JcaTlsCrypto)provider.create(new SecureRandom());
+            JcaTlsCryptoProvider provider = new JcaTlsCryptoProvider().setProvider("BCFIPS");
+            tlsCrypto = (JcaTlsCrypto)provider.create(rnumGen);
         }
         return tlsCrypto;
     }
@@ -135,13 +142,13 @@ public class TlsServerImpl
             CipherSuite.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384,
             CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
             CipherSuite.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-            CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+            /*CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
             CipherSuite.TLS_DHE_RSA_WITH_AES_256_GCM_SHA384,
             CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256,
             CipherSuite.TLS_DHE_RSA_WITH_AES_256_CBC_SHA256,
             CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA256,
             CipherSuite.TLS_DHE_RSA_WITH_AES_256_CBC_SHA,
-            CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA
+            CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA*/
         };
     }
 
@@ -208,7 +215,7 @@ public class TlsServerImpl
     public Hashtable getServerExtensions()
         throws IOException
     {
-        Hashtable serverExtensions = getServerExtensionsOverride();
+        Hashtable serverExtensions = null;//getServerExtensionsOverride();
 
         if (isSrtpDisabled())
         {

@@ -50,9 +50,6 @@ public abstract class Logger
         throws NullPointerException
     {
         Logger logger = new LoggerImpl(java.util.logging.Logger.getLogger(name));
-        // TODO: Undo This! Debug all
-        // logger.setLevelAll();
-
         return logger;
     }
 

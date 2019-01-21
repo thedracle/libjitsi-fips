@@ -11,6 +11,8 @@ import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.Vector;
 
+import java.security.SecureRandom;
+
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
@@ -43,6 +45,16 @@ public class DTLSClientProtocolWrapper extends DTLSClientProtocol {
     public DTLSClientProtocolWrapper() {
         super();
     }
+    /**
+     * The BCFIPS implementation of connect in DTLSClientProtocol destroys the masterSecret
+     * required for jitsi to decode and ecrypt packets.
+     *
+     * This overrides this behavior and because of most of the structures being protected or private
+     * inside DTLSClientProtocol has to make heavy use of reflection, see:
+     * org/bouncycastle/tls/DTLSClientProtocol.java
+     *
+     * Original statements have been preserved using comments to clarify the statements using reflection.
+     **/
     public DTLSTransport connect(TlsClient client, DatagramTransport transport) throws IOException {
         if (client == null)
         {
@@ -53,7 +65,9 @@ public class DTLSClientProtocolWrapper extends DTLSClientProtocol {
             throw new IllegalArgumentException("'transport' cannot be null");
         }
 
-        // Begin Reflection Wizardry.
+        /**
+         * Begin Reflection Wizardry.
+         */
         try {
             SecurityParameters securityParameters = new SecurityParameters();
             Field securityParametersEntity = securityParameters.getClass().getDeclaredField("entity");
@@ -83,24 +97,53 @@ public class DTLSClientProtocolWrapper extends DTLSClientProtocol {
 
             // state.clientContext = new TlsClientContextImpl(client.getCrypto(), securityParameters);
 
-            Method tlsProtocolCreateRandomBlock = TlsProtocol.class.getDeclaredMethod("createRandomBlock", Boolean.TYPE, TlsContext.class);
-            tlsProtocolCreateRandomBlock.setAccessible(true);
-
             Field securityParametersClientRandomField = securityParameters.getClass().getDeclaredField("clientRandom");
             securityParametersClientRandomField.setAccessible(true);
 
-            Object randomBlock = tlsProtocolCreateRandomBlock.invoke(null, client.shouldUseGMTUnixTime(), tlsClientContextImpl);
+            // Method tlsProtocolCreateRandomBlock = TlsProtocol.class.getDeclaredMethod("createRandomBlock", Boolean.TYPE, TlsContext.class);
+            // tlsProtocolCreateRandomBlock.setAccessible(true);
+            // byte[] randomBlock = (byte[])tlsProtocolCreateRandomBlock.invoke(null, client.shouldUseGMTUnixTime(), tlsClientContextImpl);
+
+            // createRandomBlock freezes... Use SecureRandom for now.
+            SecureRandom rnumGen = null;
+            try {
+                rnumGen = SecureRandom.getInstance("DEFAULT", "BCFIPS");
+            }
+            catch(Exception e) {
+                e.printStackTrace();
+                rnumGen = new SecureRandom();
+            }
+
+            /**
+             * The random block produced for DTLS negotiation
+             *
+             * See: https://tools.ietf.org/html/rfc5246#section-7.4.1
+             */
+            byte[] randomBlock = new byte[32];
+
+            rnumGen.nextBytes(randomBlock);
+            // Add in current time.
+            int t = (int)(System.currentTimeMillis() / 1000L);
+            randomBlock[0] = (byte)(t >>> 24);
+            randomBlock[1] = (byte)(t >>> 16);
+            randomBlock[2] = (byte)(t >>> 8);
+            randomBlock[3] = (byte)t;
 
             securityParametersClientRandomField.set(securityParameters, randomBlock);
             // securityParameters.clientRandom = TlsProtocol.createRandomBlock(client.shouldUseGMTUnixTime(), state.clientContext);
 
+            // We don't need extended master secret.
+            Field securityParametersExtendedMasterSecret = securityParameters.getClass().getDeclaredField("extendedMasterSecret");
+            securityParametersExtendedMasterSecret.setAccessible(true);
+            securityParametersExtendedMasterSecret.set(securityParameters, false);
+
             Field securityParametersExtendedPadding = securityParameters.getClass().getDeclaredField("extendedPadding");
             securityParametersExtendedPadding.setAccessible(true);
+
             securityParametersExtendedPadding.set(securityParameters, client.shouldUseExtendedPadding());
             // securityParameters.extendedPadding = client.shouldUseExtendedPadding();
 
             client.init((TlsClientContext)tlsClientContextImpl);
-
 
             Class dtlsRecorderLayerClass = Class.forName("org.bouncycastle.tls.DTLSRecordLayer");
 
@@ -134,7 +177,6 @@ public class DTLSClientProtocolWrapper extends DTLSClientProtocol {
                 }
             }
 
-            LOG.warning("JRT: Before Client Handshake.");
             try
             {
                 Method clientHandshake = DTLSClientProtocol.class.getDeclaredMethod("clientHandshake", state.getClass(), dtlsRecorderLayerClass);
@@ -143,8 +185,6 @@ public class DTLSClientProtocolWrapper extends DTLSClientProtocol {
             }
             catch (Exception e)
             {
-                LOG.warning("JRT: RECEIVED EXCEPTION" + e);
-
                 if(e instanceof TlsFatalAlert) {
                     Method abortClientHandshake = super.getClass().getDeclaredMethod("abortClientHandshake", state.getClass(), dtlsRecorderLayerClass, Short.TYPE);
                     abortClientHandshake.invoke(this, state, recordLayer, ((TlsFatalAlert)e).getAlertDescription());
@@ -163,27 +203,10 @@ public class DTLSClientProtocolWrapper extends DTLSClientProtocol {
                 throw e;
             }
         }
-        catch (IllegalAccessException e) {
-            e.printStackTrace();
-        }
-        catch (NoSuchFieldException e) {
-            e.printStackTrace();
-        }
-        catch (NoSuchMethodException e) {
-            e.printStackTrace();
-        }
-        catch (InvocationTargetException e) {
-            e.printStackTrace();
-        }
-        catch (InstantiationException e) {
-            e.printStackTrace();
-        }
-        catch (ClassNotFoundException e) {
+        catch (ReflectiveOperationException e) {
             e.printStackTrace();
         }
         catch(Exception e) {
-            LOG.warning("JRT: THROWING GENERAL EXCEPTION " + e);
-
             throw e;
         }
         return null;

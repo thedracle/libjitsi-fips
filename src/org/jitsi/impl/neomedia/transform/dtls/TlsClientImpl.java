@@ -69,7 +69,6 @@ public class TlsClientImpl
     private final DtlsPacketTransformer packetTransformer;
 
     private static JcaTlsCrypto tlsCrypto = null;
-    private static BouncyCastleFipsProvider bcFipsProvider = new BouncyCastleFipsProvider();
 
 
     // Generate a TlsCrypto using BouncyCastle's Java Cryptography Architecture implementation that provides
@@ -77,8 +76,17 @@ public class TlsClientImpl
     static JcaTlsCrypto clientCrypto() {
         // Lazy initialize
         if(tlsCrypto == null) {
-            JcaTlsCryptoProvider provider = new JcaTlsCryptoProvider().setProvider(bcFipsProvider);
-            tlsCrypto = (JcaTlsCrypto)provider.create(new SecureRandom());
+            JcaTlsCryptoProvider provider = new JcaTlsCryptoProvider().setProvider("BCFIPS");
+            SecureRandom rnumGen = null;
+            try {
+                rnumGen = SecureRandom.getInstance("DEFAULT", "BCFIPS");
+            }
+            catch(Exception e) {
+                e.printStackTrace();
+                rnumGen = new SecureRandom();
+            }
+
+            tlsCrypto = (JcaTlsCrypto)provider.create(rnumGen);
         }
         return tlsCrypto;
     }
@@ -158,7 +166,18 @@ public class TlsClientImpl
     public Hashtable getClientExtensions()
         throws IOException
     {
-        Hashtable clientExtensions = super.getClientExtensions();
+        Hashtable defaultClientExtensions = super.getClientExtensions();
+
+        Hashtable clientExtensions = new Hashtable();
+        /* 22 and 23 are extended_master_secret, and encrypt_then_mac
+         * respectively. We filter these out because Jitsi can't handle
+         * extended_master_secret.
+         **/
+        for(Object key : defaultClientExtensions.keySet()) {
+            if(!key.toString().equals("22") && !key.toString().equals("23")) {
+                clientExtensions.put(key, defaultClientExtensions.get(key));
+            }
+        }
 
         if (!isSrtpDisabled()
                 && TlsSRTPUtils.getUseSRTPExtension(clientExtensions) == null)
@@ -391,7 +410,7 @@ public class TlsClientImpl
                     // TODO[jsse] Need to have TlsCrypto construct the credentials from the certs/key
                     clientCredentials = new JcaDefaultTlsCredentialedSigner(new TlsCryptoParameters(context), TlsClientImpl.clientCrypto(),
                             privateKey, cert, new SignatureAndHashAlgorithm(
-                                HashAlgorithm.sha1,
+                                HashAlgorithm.sha256,
                                 SignatureAlgorithm.rsa));
                     }
                 catch(NoSuchAlgorithmException algEx) {

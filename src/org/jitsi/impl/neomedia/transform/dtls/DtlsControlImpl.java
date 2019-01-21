@@ -42,8 +42,9 @@ import org.bouncycastle.crypto.asymmetric.AsymmetricKeyPair;
 import org.bouncycastle.crypto.asymmetric.AsymmetricRSAPrivateKey;
 import org.bouncycastle.crypto.asymmetric.AsymmetricRSAPublicKey;
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
+import org.bouncycastle.crypto.CryptoServicesRegistrar;
+import org.bouncycastle.crypto.fips.FipsDRBG;
 
-import org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider;
 import org.bouncycastle.operator.jcajce.*;
 import org.bouncycastle.operator.*;
 import org.jitsi.impl.neomedia.*;
@@ -205,8 +206,6 @@ public class DtlsControlImpl
      */
     private static CertificateInfo certificateInfoCache;
 
-    private static BouncyCastleFipsProvider bcFipsProvider = new BouncyCastleFipsProvider();
-
     static
     {
         // Set configurable options using ConfigurationService.
@@ -237,8 +236,13 @@ public class DtlsControlImpl
 
         // HASH_FUNCTION_UPGRADES
         HASH_FUNCTION_UPGRADES.put(
-                "sha-1",
+                "sha-256",
                 new String[] { "sha-224", "sha-256", "sha-384", "sha-512" });
+
+        CryptoServicesRegistrar.setSecureRandom(
+                FipsDRBG.SHA512_HMAC.fromEntropySource(
+                    new BasicEntropySourceProvider(new SecureRandom(), true))
+                .build(null, true));
     }
 
     /**
@@ -293,7 +297,7 @@ public class DtlsControlImpl
             //
             // Digest digest = BcDefaultDigestProvider.INSTANCE.get(digAlgId);
             //
-            DigestCalculator digest = (new JcaDigestCalculatorProviderBuilder()).setProvider(bcFipsProvider).build().get(digAlgId);
+            DigestCalculator digest = (new JcaDigestCalculatorProviderBuilder()).setProvider("BCFIPS").build().get(digAlgId);
             digest.getOutputStream().write(encoded);
 
             byte[] out = digest.getDigest();
@@ -425,8 +429,17 @@ public class DtlsControlImpl
         //
         // This is basically setting ip the JCA implementation of these objects and using them
         // to get a Tls Certificate instance from an X509 Certificate.
-        JcaTlsCryptoProvider provider = new JcaTlsCryptoProvider().setProvider(bcFipsProvider);
-        JcaTlsCrypto crypto = (JcaTlsCrypto)provider.create(new SecureRandom());
+        JcaTlsCryptoProvider provider = new JcaTlsCryptoProvider().setProvider("BCFIPS");
+        SecureRandom rnumGen = null;
+        try {
+            rnumGen = SecureRandom.getInstance("DEFAULT", "BCFIPS");
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+            rnumGen = new SecureRandom();
+        }
+
+        JcaTlsCrypto crypto = (JcaTlsCrypto)provider.create(rnumGen);
 
         org.bouncycastle.tls.crypto.TlsCertificate[] certs = new org.bouncycastle.tls.crypto.TlsCertificate[] {
             new JcaTlsCertificate(crypto, x509Certificate.getEncoded())
@@ -996,7 +1009,7 @@ public class DtlsControlImpl
 
         try
         {
-            JcaTlsCryptoProvider provider = new JcaTlsCryptoProvider().setProvider(bcFipsProvider);
+            JcaTlsCryptoProvider provider = new JcaTlsCryptoProvider().setProvider("BCFIPS");
             JcaTlsCrypto crypto = (JcaTlsCrypto)provider.create(new SecureRandom());
 
             org.bouncycastle.tls.crypto.TlsCertificate[] tlsCertificateList

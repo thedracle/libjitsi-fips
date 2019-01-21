@@ -169,7 +169,6 @@ public class DatagramTransportImpl
     private void doSend(byte[] buf, int off, int len)
         throws IOException
     {
-        logger.info("JRT: DO SEND " + len);
         // Do preserve the sequence of sends.
         flush();
 
@@ -287,12 +286,11 @@ public class DatagramTransportImpl
      */
     void queueReceive(byte[] buf, int off, int len)
     {
-        logger.info("JRT: QUEUE RECEIVE " + len);
-
         if (len > 0)
         {
             synchronized (receiveQ)
             {
+
                 try
                 {
                     assertNotClosed(false);

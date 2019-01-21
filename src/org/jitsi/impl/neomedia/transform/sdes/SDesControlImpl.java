@@ -73,7 +73,15 @@ public class SDesControlImpl
         }
 
         sdesFactory = new SrtpSDesFactory();
-        sdesFactory.setRandomGenerator(new SecureRandom());
+        SecureRandom rnumGen = null;
+        try {
+            rnumGen = SecureRandom.getInstance("DEFAULT", "BCFIPS");
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+            rnumGen = new SecureRandom();
+        }
+        sdesFactory.setRandomGenerator(rnumGen);
     }
 
     public SrtpCryptoAttribute getInAttribute()

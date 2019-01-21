@@ -421,7 +421,15 @@ public class ZRTPTransformEngine
      */
     public ZRTPTransformEngine()
     {
-        SecureRandom secRand = new SecureRandom();
+        SecureRandom secRand = null;
+        try {
+            secRand = SecureRandom.getInstance("DEFAULT", "BCFIPS");
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+            secRand = new SecureRandom();
+        }
+
         byte[] random = new byte[2];
         secRand.nextBytes(random);
 

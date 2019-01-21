@@ -50,6 +50,7 @@ import org.jitsi.util.*;
 import org.jitsi.util.event.*;
 import org.jitsi.util.swing.*;
 import org.json.simple.*;
+import org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider;
 
 import com.sun.media.util.*;
 
@@ -1539,7 +1540,17 @@ public class MediaServiceImpl
          * a connection for exemple.
          */
         logger.info("Warming up SecureRandom...");
-        SecureRandom rnd = new SecureRandom();
+        Security.addProvider(new BouncyCastleFipsProvider());
+
+        SecureRandom rnd = null;
+        try {
+            rnd = SecureRandom.getInstance("DEFAULT", "BCFIPS");
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+            rnd = new SecureRandom();
+        }
+
         byte[] b = new byte[20];
         rnd.nextBytes(b);
         logger.info("Warming up SecureRandom finished.");
